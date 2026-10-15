@@ -10,6 +10,9 @@ include("shared.lua")
 include("sv_brain.lua")
 include("sv_attack.lua")
 
+local entMeta = FindMetaTable("Entity")
+local NULL = NULL
+
 local cv_probes = CreateConVar("evil_crawler_debug_probes", "0", 0, "Draw surface probes (needs developer 1)")
 
 local GRAVITY = EvilCrawler.GRAVITY
@@ -113,18 +116,23 @@ function ENT:Think()
 end
 
 function ENT:SenseSurface(pos, fwd, left, up, move)
-	local h = self.BodyHeight
+	local myTbl = entMeta.GetTable(self)
+
+	local h = myTbl.BodyHeight
 	local reach = h * PROBE_REACH
 	local normal, point, grip = Vector(), Vector(), 0
 
-	local function probe(from, dir, len, weight)
-		local tr = self:Trace(from, from + dir * len)
+	local traceFunc = myTbl.TraceMyTbl
+
+	local function probe(myTbl, from, dir, len, weight)
+		local tr = traceFunc(self, myTbl, from, from + dir * len)
 		if not tr.Hit or tr.StartSolid or tr.HitSky or tr.HitNoDraw then return false end
-		if IsValid(tr.Entity) and SWINGS[tr.Entity:GetClass()] then return false end
+		local hitEnt = tr.Entity
+		if not tr.HitWorld and hitEnt ~= NULL and SWINGS[entMeta.GetClass(hitEnt)] then return false end
 		if cv_probes:GetBool() then debugoverlay.Line(from, tr.HitPos, 0.05, PROBE_COLOR, true) end
 		local near = 1 - math.min(1, tr.HitPos:Distance(pos) / reach)
 		local w = weight * near * near
-		if self.Gap and tr.HitNormal:Dot(self.Gap) < FACING then w = w * GAP_GRIP end
+		if myTbl.Gap and tr.HitNormal:Dot(myTbl.Gap) < FACING then w = w * GAP_GRIP end
 		normal:Add(tr.HitNormal * w)
 		point:Add(tr.HitPos * w)
 		grip = grip + w
@@ -137,12 +145,12 @@ function ENT:SenseSurface(pos, fwd, left, up, move)
 
 	local downHits = 0
 	for _, d in ipairs(DOWN) do
-		if probe(pos, world(d), reach, 1) then downHits = downHits + 1 end
+		if probe(myTbl, pos, world(d), reach, 1) then downHits = downHits + 1 end
 	end
 
 	for _, d in ipairs(RING) do
 		local dir = world(d)
-		probe(pos, dir, h * 1.5, math.max(0.25, dir:Dot(move)))
+		probe(myTbl, pos, dir, h * 1.5, math.max(0.25, dir:Dot(move)))
 	end
 
 	if downHits < #DOWN * 0.6 then
@@ -150,7 +158,7 @@ function ENT:SenseSurface(pos, fwd, left, up, move)
 			local below = pos - up * (h * depth)
 			for _, d in ipairs(RING) do
 				local dir = world(d)
-				probe(below + dir * (h * 1.3), -dir, h * 1.3, math.max(0.3, dir:Dot(move)))
+				probe(myTbl, below + dir * (h * 1.3), -dir, h * 1.3, math.max(0.3, dir:Dot(move)))
 			end
 		end
 	end
@@ -199,53 +207,54 @@ function ENT:SafeMove(from, to)
 end
 
 function ENT:Crawl(dt)
-	local h = self.BodyHeight
-	local pos = self:GetPos()
-	local up, fwd = self.BodyUp, self.Facing
-	local move = self.Vel:LengthSqr() > 100 and self.Vel:GetNormalized() or fwd
-	local normal, anchor, grip = self:SenseSurface(pos, fwd, up:Cross(fwd), up, move)
+	local myTbl = entMeta.GetTable(self)
+	local h = myTbl.BodyHeight
+	local pos = entMeta.GetPos(self)
+	local up, fwd = myTbl.BodyUp, myTbl.Facing
+	local move = myTbl.Vel:LengthSqr() > 100 and myTbl.Vel:GetNormalized() or fwd
+	local normal, anchor, grip = myTbl.SenseSurface(self, pos, fwd, up:Cross(fwd), up, move)
 
 	local now = CurTime()
-	local loose = grip < (self.Falling and REGRIP or GRIP)
-	local held = now < (self.LetGoUntil or 0)
-	self.Falling = loose or held
-	local wet = self:Wet(pos)
+	local loose = grip < (myTbl.Falling and REGRIP or GRIP)
+	local held = now < (myTbl.LetGoUntil or 0)
+	myTbl.Falling = loose or held
+	local wet = myTbl.Wet(self, pos)
 
 	local target, topSpeed, accel
-	if not self.Falling or wet and not held then target, topSpeed, accel = self:Steer() end
-	local swimming = self:GetSwimming()
+	if not myTbl.Falling or wet and not held then target, topSpeed, accel = myTbl.Steer(self) end
+	local swimming = myTbl.GetSwimming(self)
 	local swim = wet and not held and (loose or not target and swimming
 		or target and self:Wet(target) and (swimming or (target - pos):Dot(up) > h * 0.5)) or false
-	self:SetSwimming(swim)
+	myTbl.SetSwimming(self, swim)
 
-	local speed = self.Vel:Length()
+	local speed = myTbl.Vel:Length()
 	local rush = math.max(1, speed / RUSH_SPEED)
 	local crouch = math.Clamp((speed - CROUCH[1]) / (CROUCH[2] - CROUCH[1]), 0, 1) * CROUCH[3]
 
 	if swim then
-		self.Falling, self.Gap = false, nil
-		local _, u = EvilCrawler.Stroke(self:GetSeed(), now)
+		myTbl.Falling, myTbl.Gap = false, nil
+		local _, u = EvilCrawler.Stroke(myTbl.GetSeed(self), now)
 		local push = target and u < EvilCrawler.STROKE_PUSH
 		local want = SINK
 		if target then
 			local to = target - pos
 			want = push and to:GetNormalized() * topSpeed * SWIM_PACE * math.Clamp((to:Length() - 24) / (h * 1.5), 0, 1) or vector_origin
 		end
-		self.Vel = LerpVector(1 - math.exp(-dt * (push and SWIM_PUSH or SWIM_DRAG)), self.Vel, want)
-		local step = pos + self.Vel * dt
-		if self.Vel.z > 0 and not self:Wet(step + vector_up * SURFACE) then
-			self.Vel.z = 0
-			step = pos + self.Vel * dt
+		myTbl.Vel = LerpVector(1 - math.exp(-dt * (push and SWIM_PUSH or SWIM_DRAG)), myTbl.Vel, want)
+		local step = pos + myTbl.Vel * dt
+		if myTbl.Vel.z > 0 and not myTbl.Wet(self, step + vector_up * SURFACE) then
+			myTbl.Vel.z = 0
+			step = pos + myTbl.Vel * dt
 		end
-		pos = self:SafeMove(pos, step)
+		pos = myTbl.SafeMove(self, pos, step)
 
-		if self.Vel:LengthSqr() > 400 then
-			fwd = LerpVector(1 - math.exp(-dt * SWIM_TURN), fwd, self.Vel:GetNormalized()):GetNormalized()
+		if myTbl.Vel:LengthSqr() > 400 then
+			fwd = LerpVector(1 - math.exp(-dt * SWIM_TURN), fwd, myTbl.Vel:GetNormalized()):GetNormalized()
 		end
 		up = up - fwd * up:Dot(fwd)
 		if up:LengthSqr() < 1e-4 then up = fwd:Angle():Up() end
 		up:Normalize()
-	elseif not self.Falling then
+	elseif not myTbl.Falling then
 		up, fwd = Turn(up, fwd, normal, 1 - math.exp(-dt * STICK_RATE * rush))
 
 		local wish = Vector()
@@ -253,43 +262,43 @@ function ENT:Crawl(dt)
 			local to = target - pos
 			local flat = to - up * to:Dot(up)
 			local along = flat:Length()
-			if self.Puppeting and along < to:Length() * 0.3 then flat, along = fwd, h * 3 end
+			if myTbl.Puppeting and along < to:Length() * 0.3 then flat, along = fwd, h * 3 end
 			wish = flat:GetNormalized() * topSpeed * math.Clamp((along - 24) / (h * 1.5), 0, 1)
 		end
 
 		local height = (pos - anchor):Dot(normal)
 		local room
-		room, self.Gap = self:Headroom(pos, normal, height, wish:LengthSqr() > 1 and wish:GetNormalized() or nil)
+		room, myTbl.Gap = myTbl.Headroom(self, pos, normal, height, wish:LengthSqr() > 1 and wish:GetNormalized() or nil)
 		room = math.Clamp(room, ROOM_MIN, h)
-		self.Room = Lerp(1 - math.exp(-dt * (room < self.Room and DUCK_RATE or RISE_RATE)), self.Room, room)
-		local squeeze = math.Round(1 - self.Room / h, 2)
-		if squeeze ~= self:GetSqueeze() then self:SetSqueeze(squeeze) end
-		wish = wish * math.max(SQUEEZED, self.Room / h)
+		myTbl.Room = Lerp(1 - math.exp(-dt * (room < myTbl.Room and DUCK_RATE or RISE_RATE)), myTbl.Room, room)
+		local squeeze = math.Round(1 - myTbl.Room / h, 2)
+		if squeeze ~= myTbl.GetSqueeze(self) then myTbl.SetSqueeze(self, squeeze) end
+		wish = wish * math.max(SQUEEZED, myTbl.Room / h)
 
-		self.Vel = LerpVector(1 - math.exp(-dt * accel), self.Vel, wish)
-		self.Vel = self.Vel - up * self.Vel:Dot(up)
+		myTbl.Vel = LerpVector(1 - math.exp(-dt * accel), myTbl.Vel, wish)
+		myTbl.Vel = myTbl.Vel - up * myTbl.Vel:Dot(up)
 
-		local err = math.min(h * (1 - crouch), self.Room) - height
-		pos = self:SafeMove(pos, pos + self.Vel * dt + normal * (err * (1 - math.exp(-dt * HOLD_RATE * rush))))
+		local err = math.min(h * (1 - crouch), myTbl.Room) - height
+		pos = myTbl.SafeMove(self, pos, pos + myTbl.Vel * dt + normal * (err * (1 - math.exp(-dt * HOLD_RATE * rush))))
 	else
-		self.Gap = nil
+		myTbl.Gap = nil
 		up, fwd = Turn(up, fwd, vector_up, 1 - math.exp(-dt * 3))
-		self.Vel = self.Vel - vector_up * (GRAVITY * (wet and SINK_GRAVITY or 1) * dt)
-		if wet then self.Vel = self.Vel * math.exp(-dt * SWIM_DRAG) end
-		local want = pos + self.Vel * dt
-		pos = self:SafeMove(pos, want)
-		if pos ~= want then self.Vel = self.Vel * math.exp(-dt * 6) end
+		myTbl.Vel = myTbl.Vel - vector_up * (GRAVITY * (wet and SINK_GRAVITY or 1) * dt)
+		if wet then myTbl.Vel = myTbl.Vel * math.exp(-dt * SWIM_DRAG) end
+		local want = pos + myTbl.Vel * dt
+		pos = myTbl.SafeMove(self, pos, want)
+		if pos ~= want then myTbl.Vel = myTbl.Vel * math.exp(-dt * 6) end
 	end
 
-	if not self.Falling and not swim and self.Vel:LengthSqr() > 100 then
-		fwd = LerpVector(1 - math.exp(-dt * 6 * rush), fwd, self.Vel:GetNormalized())
+	if not myTbl.Falling and not swim and myTbl.Vel:LengthSqr() > 100 then
+		fwd = LerpVector(1 - math.exp(-dt * 6 * rush), fwd, myTbl.Vel:GetNormalized())
 	end
 	fwd = fwd - up * fwd:Dot(up)
 	if fwd:LengthSqr() < 1e-4 then fwd = up:Angle():Up() end
 	fwd:Normalize()
 
-	self.BodyUp = up
-	self.Facing = fwd
-	self:SetPos(pos)
-	self:SetAngles(fwd:AngleEx(up))
+	myTbl.BodyUp = up
+	myTbl.Facing = fwd
+	entMeta.SetPos(self, pos)
+	entMeta.SetAngles(self, fwd:AngleEx(up))
 end

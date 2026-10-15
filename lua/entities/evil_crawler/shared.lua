@@ -137,10 +137,85 @@ function ENT:SetupDataTables()
 	self:NetworkVar("Bool", 0, "Swimming")
 end
 
-function ENT:Trace(from, to, mask)
-	self.TraceFilter = self.TraceFilter or function(e)
-		return e ~= self and not e:IsPlayer() and not e:IsNPC() and not e:IsNextBot() and e:GetClass() ~= "prop_ragdoll"
-			and e:GetCollisionGroup() ~= COLLISION_GROUP_DEBRIS
+local entMeta = FindMetaTable("Entity")
+
+local isNpcEnt
+local isNextbotEnt
+local isNextbotOrNpcEnt
+local isPlayer
+
+-- 2x as fast as :IsNPC(), which isnt really much faster but hey. credit to zaurzo for the method
+do
+	local npcMeta = FindMetaTable("NPC")
+	local nextbotMeta = FindMetaTable("NextBot")
+	local plyMeta = FindMetaTable("Player")
+	local getmetatable = getmetatable
+
+	isNpcEnt = function(ent)
+		return getmetatable(ent) == npcMeta
 	end
-	return util.TraceLine({ start = from, endpos = to, filter = self.TraceFilter, mask = mask or MASK_SOLID })
+	isNextbotEnt = function(ent)
+		return getmetatable(ent) == nextbotMeta
+	end
+
+	isNextbotOrNpcEnt = function(ent)
+		return isNpcEnt(ent) or isNextbotEnt(ent)
+	end
+	function ENT:IsNextbotOrNpcEnt(ent)
+		return isNextbotOrNpcEnt(ent)
+	end
+
+	isPlayer = function(ent)
+		return getmetatable(ent) == plyMeta
+	end
+	function ENT:IsPlyNoIndex(ent)
+		return isPlayer(ent)
+	end
+end
+
+local traceTbl = {}
+local traceOwner
+local COLLISION_GROUP_DEBRIS = COLLISION_GROUP_DEBRIS
+
+ENT.DefaultTraceFilter = function(e)
+	if e == traceOwner then return end
+	if isPlayer(e) or isNpcEnt(e) or isNextbotEnt(e) then return end
+	if entMeta.IsRagdoll(e) then return end
+	if entMeta.GetCollisionGroup(e) == COLLISION_GROUP_DEBRIS then return end
+	return true
+end
+
+function ENT:Trace(from, to, mask)
+	local myTbl = entMeta.GetTable(self)
+	mask = mask or MASK_SOLID
+
+	local traceFilter = myTbl.TraceFilter or myTbl.DefaultTraceFilter
+
+	traceTbl.start = from
+	traceTbl.endpos = to
+	traceTbl.filter = traceFilter
+	traceTbl.mask = mask
+
+	traceOwner = self
+	local result = util.TraceLine(traceTbl)
+	traceOwner = nil
+
+	return result
+end
+
+function ENT:TraceMyTbl(myTbl, from, to, mask)
+	mask = mask or MASK_SOLID
+
+	local traceFilter = myTbl.TraceFilter or myTbl.DefaultTraceFilter
+
+	traceTbl.start = from
+	traceTbl.endpos = to
+	traceTbl.filter = traceFilter
+	traceTbl.mask = mask
+
+	traceOwner = self
+	local result = util.TraceLine(traceTbl)
+	traceOwner = nil
+
+	return result
 end

@@ -3,6 +3,10 @@ include("evil_crawler/cl_flesh.lua")
 include("evil_crawler/cl_remains.lua")
 include("evil_crawler/cl_struggle.lua")
 
+local entMeta = FindMetaTable("Entity")
+local math = math
+local IsValid = IsValid
+
 local cv_debug = CreateClientConVar("evil_crawler_debug", "0", false, false, "Draw foot targets")
 
 language.Add("evil_crawler", "Evil Crawler")
@@ -115,17 +119,17 @@ function ENT:OnRemove()
 	if self.Emitter then self.Emitter:Finish() end
 end
 
-function ENT:Creature()
-	local seed = self:GetSeed()
+function ENT:Creature(myTbl)
+	local seed = myTbl.GetSeed(self)
 	if seed == 0 then return end
 
-	if self.GrownFrom ~= seed then
-		self.GrownFrom = seed
-		self.Morph = EvilCrawler.Grow(seed)
-		self.BodyHeight = self.Morph.height
-		self.LimbState = nil
+	if myTbl.GrownFrom ~= seed then
+		myTbl.GrownFrom = seed
+		myTbl.Morph = EvilCrawler.Grow(seed)
+		myTbl.BodyHeight = myTbl.Morph.height
+		myTbl.LimbState = nil
 	end
-	return self.Morph
+	return myTbl.Morph
 end
 
 local function Wobble(t, phase, freq)
@@ -304,16 +308,16 @@ local function Coil(st, leg, role, root, a, b, r, bulge, t)
 	end
 end
 
-function ENT:FootTarget(root, rest, up)
-	local h = self.BodyHeight
+function ENT:FootTarget(myTbl, root, rest, up)
+	local h = myTbl.BodyHeight
 
-	local reach = self:Trace(root, rest)
+	local reach = myTbl.TraceMyTbl(self, myTbl, root, rest)
 	if reach.Hit and not reach.HitSky then return reach.HitPos, true end
 
-	local down = self:Trace(rest, rest - up * (h * 1.6))
+	local down = myTbl.TraceMyTbl(self, myTbl, rest, rest - up * (h * 1.6))
 	if down.Hit and not down.HitSky then return down.HitPos, true end
 
-	local back = self:Trace(rest - up * (h + 12), root - up * (h + 12))
+	local back = myTbl.TraceMyTbl(self, myTbl, rest - up * (h + 12), root - up * (h + 12))
 	if back.Hit then return back.HitPos, true end
 
 	return rest - up * (h * 0.6), false
@@ -327,78 +331,79 @@ function ENT:NeighboursPlanted(leg)
 	return true
 end
 
-function ENT:UpdateLimbs()
-	local morph = self:Creature()
+function ENT:UpdateLimbs(myTbl, pos)
+	local morph = myTbl.Creature(self, myTbl)
 	if not morph then return end
 
 	local now = UnPredictedCurTime()
-	local dt = now - (self.LastLimbUpdate or 0)
+	local dt = now - (myTbl.LastLimbUpdate or 0)
 	if dt <= 0 then return end
-	self.LastLimbUpdate = now
+	myTbl.LastLimbUpdate = now
 
-	local pos, ang = self:GetPos(), self:GetAngles()
+	local ang = entMeta.GetAngles(self)
 
-	if not self.LimbState or dt > SNAP_GAP then
-		self.LimbState = {}
-		self.SmoothVel = Vector()
-		self.LastPos = pos
-		self.Churn = 0
-		self.Agitation = 0
+	if not myTbl.LimbState or dt > SNAP_GAP then
+		myTbl.LimbState = {}
+		myTbl.SmoothVel = Vector()
+		myTbl.LastPos = pos
+		myTbl.Churn = 0
+		myTbl.Agitation = 0
 	end
 
-	self.SmoothVel = LerpVector(math.min(1, dt * 20), self.SmoothVel, (pos - self.LastPos) / dt)
-	self.LastPos = pos
-	local speed = self.SmoothVel:Length()
+	myTbl.SmoothVel = LerpVector(math.min(1, dt * 20), myTbl.SmoothVel, (pos - myTbl.LastPos) / dt)
+	myTbl.LastPos = pos
+	local speed = myTbl.SmoothVel:Length()
 
-	local prey = self:GetPrey()
+	local prey = myTbl.GetPrey(self)
 	local feel = IsValid(prey) and prey:EyePos()
-	if feel then self.LastFeel = feel end
-	self.Agitation = math.Approach(self.Agitation, MOOD_AGITATION[self:GetMood()] or 0, dt * 0.8)
-	local agit = self.Agitation
+	if feel then myTbl.LastFeel = feel end
+	myTbl.Agitation = math.Approach(myTbl.Agitation, MOOD_AGITATION[myTbl.GetMood(self)] or 0, dt * 0.8)
+	local agit = myTbl.Agitation
 
-	local act, victim, actStart = self:GetAct(), self:GetVictim(), self:GetActStart()
+	local act, victim, actStart = myTbl.GetAct(self), myTbl.GetVictim(self), myTbl.GetActStart(self)
 	local limp = act == ACT_OUT or act == ACT_DEAD
 
 	if act == ACT_NONE then
-		self.Churn = self.Churn + dt * morph.churn * (1 + math.sin(now * 0.3 + morph.phase)) * (1 + 2 * agit)
+		myTbl.Churn = myTbl.Churn + dt * morph.churn * (1 + math.sin(now * 0.3 + morph.phase)) * (1 + 2 * agit)
 	end
-	ang:RotateAroundAxis(ang:Up(), self.Churn)
+	ang:RotateAroundAxis(ang:Up(), myTbl.Churn)
 
 	local fwd, left, up = ang:Forward(), -ang:Right(), ang:Up()
 
-	if self.RolesAct ~= act or self.RolesStart ~= actStart or self.RolesVictim ~= victim then
-		self.RolesAct, self.RolesStart, self.RolesVictim = act, actStart, victim
-		self.Roles = self:AssignRoles(morph, act, victim, pos, fwd, left)
+	if myTbl.RolesAct ~= act or myTbl.RolesStart ~= actStart or myTbl.RolesVictim ~= victim then
+		myTbl.RolesAct, myTbl.RolesStart, myTbl.RolesVictim = act, actStart, victim
+		myTbl.Roles = myTbl.AssignRoles(self, morph, act, victim, pos, fwd, left)
 	end
+
 	local function toWorld(v) return pos + fwd * v.x + left * v.y + up * v.z end
 
-	local lead = self.SmoothVel * LEAD_TIME
-	local maxLead = self.BodyHeight * MAX_LEAD
+	local lead = myTbl.SmoothVel * LEAD_TIME
+	local maxLead = myTbl.BodyHeight * MAX_LEAD
 	if lead:LengthSqr() > maxLead * maxLead then lead = lead:GetNormalized() * maxLead end
 	local skitter = math.Clamp((speed - SKITTER[1]) / (SKITTER[2] - SKITTER[1]), 0, 1)
 	local hurry = math.Clamp(1 - speed * 0.0015, 0.45, 1) * math.min(1, SKITTER[1] / math.max(speed, 1))
 	local low = 1 - 0.65 * skitter
 	local loud = math.Clamp(speed / SKITTER[2], 0, 1)
 	local shake = 0.04 + 0.04 * agit
-	local squeezed = math.max(MIN_SHRINK, 1 - self:GetSqueeze())
+	local squeezed = math.max(MIN_SHRINK, 1 - myTbl.GetSqueeze(self))
 
-	local swimming = self:GetSwimming() and not limp
+	local swimming = myTbl.GetSwimming(self) and not limp
 	local axis, lift, side, stroke
 	if swimming then
-		axis = speed > SWIM_STILL and self.SmoothVel / speed or self:GetForward()
-		lift = self:GetUp()
+		axis = speed > SWIM_STILL and myTbl.SmoothVel / speed or entMeta.GetForward(self)
+		lift = entMeta.GetUp(self)
 		lift = lift - axis * lift:Dot(axis)
 		if lift:LengthSqr() < 1e-4 then lift = axis:Angle():Up() end
 		lift:Normalize()
 		side = axis:Cross(lift)
-		local n, u = Stroke(self:GetSeed(), now)
+		local n, u = Stroke(myTbl.GetSeed(self), now)
 		local open = u < STROKE_PUSH and 1 - Smooth(u / STROKE_PUSH) or u < SWIM_OPEN and 0 or Smooth((u - SWIM_OPEN) / (1 - SWIM_OPEN))
 		local hover = 0.55 + 0.1 * math.sin(now * 1.5 + morph.phase)
 		stroke = Lerp(math.Clamp(speed / SWIM_FAST, 0, 1), hover, open)
-		if n ~= self.LastStroke and speed > SWIM_STILL then
+		if n ~= myTbl.LastStroke and speed > SWIM_STILL then
 			sound.Play(SWIM_SOUNDS[math.random(#SWIM_SOUNDS)], pos, 60, math.random(70, 90), 0.4)
 		end
-		self.LastStroke = n
+		myTbl.LastStroke = n
 	end
 	local twitchRate = 0.2 + 1.2 * agit
 
@@ -410,15 +415,15 @@ function ENT:UpdateLimbs()
 
 	local airborne, maxAirborne = 0, math.ceil(#morph.legs * Lerp(skitter, MAX_AIRBORNE, SKITTER[3]))
 	for _, leg in ipairs(morph.legs) do
-		local st = self.LimbState[leg]
+		local st = myTbl.LimbState[leg]
 		if st and st.stepping then airborne = airborne + 1 end
 	end
 
 	for _, limb in ipairs(morph.legs) do
-		local st = self.LimbState[limb]
+		local st = myTbl.LimbState[limb]
 		if not st then
 			st = { points = {}, twitch = Vector(), raise = 0, wrap = 0, lumps = {}, blood = 0 }
-			self.LimbState[limb] = st
+			myTbl.LimbState[limb] = st
 		end
 		st.lumps, st.blood = st.lumps or {}, st.blood or 0
 
@@ -429,11 +434,11 @@ function ENT:UpdateLimbs()
 
 		local root = toWorld(limb.root)
 
-		local role = self.Roles[limb]
+		local role = myTbl.Roles[limb]
 		local shrink = role and 1 or squeezed
 		local yaw = math.rad(limb.angle)
 		local rest = pos + (fwd * math.cos(yaw) + left * math.sin(yaw)) * (limb.length * limb.spread * shrink) + lead
-		local target, grounded = self:FootTarget(root, rest, up)
+		local target, grounded = myTbl.FootTarget(self, myTbl, root, rest, up)
 		if not grounded then
 			target = target + Wobble(now * 2, limb.phase, limb.freq) * limb.length * 0.2
 		end
@@ -454,7 +459,7 @@ function ENT:UpdateLimbs()
 
 		if limp then
 			local flat = pos + (fwd * math.cos(yaw) + left * math.sin(yaw)) * (limb.length * SPRAWL)
-			local tr = self:Trace(flat + up * (limb.length * 0.3), flat - up * limb.length)
+			local tr = myTbl.Trace(self, flat + up * (limb.length * 0.3), flat - up * limb.length)
 			st.foot = LerpVector(math.min(1, dt * 5), st.foot, tr.Hit and tr.HitPos or flat)
 			st.stepping = false
 		elseif swimming then
@@ -474,8 +479,8 @@ function ENT:UpdateLimbs()
 				st.stepping = false
 				st.foot = target
 				airborne = airborne - 1
-				if grounded and now >= (self.NextFootSound or 0) then
-					self.NextFootSound = now + FOOT_SOUND_GAP
+				if grounded and now >= (myTbl.NextFootSound or 0) then
+					myTbl.NextFootSound = now + FOOT_SOUND_GAP
 					local snd = FOOT_SOUNDS[math.random(#FOOT_SOUNDS)]
 					sound.Play(snd, target, 65 + 12 * loud, limb.pitch + math.random(-10, 10) + 15 * loud, 0.35 + 0.4 * loud)
 				end
@@ -486,7 +491,7 @@ function ENT:UpdateLimbs()
 			else
 				local drift = st.foot:Distance(target)
 				local overreach = st.foot:Distance(root) > limb.length * shrink * 0.97
-				if overreach or (drift > limb.stepDistance * shrink and airborne < maxAirborne and self:NeighboursPlanted(limb)) then
+				if overreach or (drift > limb.stepDistance * shrink and airborne < maxAirborne and myTbl.NeighboursPlanted(self, limb)) then
 					st.stepping, st.t, st.from = true, 0, st.foot
 					airborne = airborne + 1
 				end
@@ -498,8 +503,8 @@ function ENT:UpdateLimbs()
 			local t = st.t
 			foot = LerpVector(Smooth(t), st.from, target) + up * (math.sin(t * math.pi) * limb.stepHeight * low * shrink)
 		end
-		if st.raise > 0 and self.LastFeel then
-			local aim = root + (self.LastFeel - root):GetNormalized() * (limb.length * 0.75) + up * (limb.length * 0.25)
+		if st.raise > 0 and myTbl.LastFeel then
+			local aim = root + (myTbl.LastFeel - root):GetNormalized() * (limb.length * 0.75) + up * (limb.length * 0.25)
 				+ Wobble(now * 3, limb.phase, limb.freq) * (limb.length * 0.04)
 			foot = LerpVector(Smooth(st.raise), foot, aim)
 		end
@@ -538,7 +543,7 @@ function ENT:UpdateLimbs()
 				foot = Chest(victim)
 			elseif act == ACT_FEED then
 				st.bites = st.bites or {}
-				local bite, n, u = BitePose(victim, self:GetSeed(), role.index - 1, now - actStart - PULL_TIME, up, now, limb, st.bites)
+				local bite, n, u = BitePose(victim, myTbl.GetSeed(self), role.index - 1, now - actStart - PULL_TIME, up, now, limb, st.bites)
 				st.work = math.Approach(st.work or 0, 1, dt * 3)
 				foot = LerpVector(Smooth(st.work), foot, bite)
 				local stage = u < BITE_IN and 0 or u < BITE_RIP and 1 or 2
@@ -604,25 +609,27 @@ local function LimbColor(f, limb)
 end
 
 function ENT:Draw()
-	self:UpdateLimbs()
-	local morph = self.Morph
-	if not morph or not self.LimbState then return end
+	local myTbl = entMeta.GetTable(self)
+	local pos = entMeta.GetPos(self)
 
-	local pos = self:GetPos()
+	myTbl.UpdateLimbs(self, myTbl, pos)
+	local morph = myTbl.Morph
+	if not morph or not myTbl.LimbState then return end
+
 	local near = EyePos():DistToSqr(pos) < LOD_DISTANCE * LOD_DISTANCE
 	local sides, sub = near and 6 or 4, near and 3 or 1
 
 	drawNow = UnPredictedCurTime()
-	drawHeat = (self.Heat or 0) * (0.85 + 0.15 * math.sin(drawNow * 23 + math.sin(drawNow * 7) * 2))
+	drawHeat = (myTbl.Heat or 0) * (0.85 + 0.15 * math.sin(drawNow * 23 + math.sin(drawNow * 7) * 2))
 	drawRot = 1
-	if self:GetAct() == ACT_DEAD then
-		drawRot = 1 - Smooth(math.Clamp((drawNow - self:GetActStart() - (CORPSE_TIME - ROT_TIME)) / ROT_TIME, 0, 1))
+	if myTbl.GetAct(self) == ACT_DEAD then
+		drawRot = 1 - Smooth(math.Clamp((drawNow - myTbl.GetActStart(self) - (CORPSE_TIME - ROT_TIME)) / ROT_TIME, 0, 1))
 		if drawRot <= 0 then return end
 	end
 	Flesh.SampleLight(pos, drawHeat)
 	render.SetMaterial(Flesh.Material)
 	for _, limb in ipairs(morph.legs) do
-		local st = self.LimbState[limb]
+		local st = myTbl.LimbState[limb]
 		drawing = st
 		if st.wrap > 0 and st.coil then
 			local pts = Resample(st.points, COIL_POINTS, st.display or {})
@@ -637,7 +644,7 @@ function ENT:Draw()
 
 	if cv_debug:GetBool() then
 		for _, leg in ipairs(morph.legs) do
-			local st = self.LimbState[leg]
+			local st = myTbl.LimbState[leg]
 			local c = st.grounded and DEBUG_TARGET or DEBUG_DANGLE
 			render.DrawWireframeSphere(st.target, 3, 4, 4, c, true)
 		end
