@@ -109,7 +109,8 @@ local function Track(rag, mask, live)
 			if Has(mask, i) and not Has(had, i) then rag.EvilCrawlerSlurp[i] = CurTime() end
 		end
 		for _, crawler in ipairs(ents.FindByClass("evil_crawler")) do
-			if crawler:GetVictim() == rag then rag.EvilCrawlerEater = crawler end
+			-- entities arriving in the same snapshot can exist before SetupDataTables has run on them
+			if crawler.GetVictim and crawler:GetVictim() == rag then rag.EvilCrawlerEater = crawler end
 		end
 	end
 	rag.EvilCrawlerMask = mask
