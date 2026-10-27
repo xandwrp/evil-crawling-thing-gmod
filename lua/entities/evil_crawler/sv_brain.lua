@@ -165,7 +165,7 @@ local function Perceivable(ent)
 	if Creature(ent) then return EvilCrawler.Living(ent) and not ent.EvilCrawlerVictim end
 	return ent:Alive()
 		and not ent.EvilCrawlerVictim
-		and not Evil.Owner(ent)
+		and not EvilCrawler.Held(ent)
 		and not EvilCrawler.Noclipping(ent)
 		and ent:GetObserverMode() == OBS_MODE_NONE
 end

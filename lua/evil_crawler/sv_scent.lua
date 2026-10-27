@@ -63,6 +63,14 @@ function EvilCrawler.Noclipping(ply)
 	return ply:GetMoveType() == MOVETYPE_NOCLIP and not ply:InVehicle() and not EvilCrawler.Fake(ply)
 end
 
+function EvilCrawler.Held(ent)
+	local owner = Evil.Owner(ent)
+	if not owner then return false end
+	if owner:IsPlayer() and not owner:Alive() or Creature(owner) and not EvilCrawler.Living(owner) then return false end
+	local claimed, died = ent.EvilCrawlerClaimed, ent.EvilCrawlerDied
+	return not (claimed and died and claimed <= died)
+end
+
 local function Key(ix, iy, iz)
 	return (ix + 512) * 1048576 + (iy + 512) * 1024 + (iz + 512)
 end
@@ -368,6 +376,14 @@ end
 hook.Add("OnNPCKilled", "EvilCrawlerScent", function(npc, attacker)
 	if npc.EvilCrawlerVictim or Crawler(attacker) or ai_serverragdolls and ai_serverragdolls:GetBool() then return end
 	Scent.Reek(npc:GetPos(), nil, FRESH)
+end)
+
+hook.Add("EvilClaimed", "EvilCrawlerHeld", function(ent)
+	ent.EvilCrawlerClaimed = CurTime()
+end)
+
+hook.Add("PostPlayerDeath", "EvilCrawlerHeld", function(ply)
+	ply.EvilCrawlerDied = CurTime()
 end)
 
 hook.Add("PlayerDeath", "EvilCrawlerScent", function(ply, _, attacker)
