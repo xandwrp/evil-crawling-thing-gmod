@@ -200,8 +200,10 @@ local function Hide(npc)
 	else
 		npc.BehaveUpdate, npc.Think = Nothing, Nothing
 	end
-	npc.EvilCrawlerPaused = npc.PauseAttacks
-	npc.PauseAttacks = true
+	if not isfunction(npc.PauseAttacks) then
+		npc.EvilCrawlerPaused = npc.PauseAttacks
+		npc.PauseAttacks = true
+	end
 end
 
 local function Manips(rag, ent)
@@ -503,7 +505,7 @@ local function GetUp(rag, npc)
 	npc:SetNoDraw(false)
 	npc:DrawShadow(true)
 	if not npc.EvilCrawlerHadNoTarget then npc:RemoveFlags(FL_NOTARGET) end
-	npc.PauseAttacks = npc.EvilCrawlerPaused
+	if not isfunction(npc.PauseAttacks) then npc.PauseAttacks = npc.EvilCrawlerPaused end
 	npc.EvilCrawlerVictim = nil
 	npc.EvilCrawlerBody = nil
 	Evil.Scare(npc, ESCAPE_FEAR)

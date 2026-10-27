@@ -1104,8 +1104,8 @@ timer.Create("EvilCrawlerEnemy", 1, 0, function()
 	if #crawlers == 0 then return end
 	for npc in pairs(Scent.npcs) do
 		local list, memory
-		if IsValid(npc) then list, memory = npc.RelationshipEnts, npc.RelationshipMemory end
-		if list and memory then
+		if IsValid(npc) and not npc.IsZBaseNPC then list, memory = npc.RelationshipEnts, npc.RelationshipMemory end
+		if istable(list) and istable(memory) then
 			for _, crawler in ipairs(crawlers) do
 				if not table.HasValue(list, crawler) then
 					memory[crawler] = memory[crawler] or {}
