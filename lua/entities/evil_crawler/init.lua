@@ -228,7 +228,7 @@ function ENT:Crawl(dt)
 
 	local target, topSpeed, accel
 	if not self.Falling or wet and not held then target, topSpeed, accel = self:Steer() end
-	if not held and now < (self.LetGoUntil or 0) and self:Piloted() then
+	if not held and now < (self.LetGoUntil or 0) then
 		held = true
 		self.Falling = true
 	end
