@@ -653,7 +653,10 @@ hook.Add("EntityTakeDamage", "EvilCrawlerVictims", function(ent, dmg)
 	if not Victim.Alive(ent) or EvilCrawler.Faker(ent) or dmg:IsDamageType(DMG_CRUSH) then return end
 	local attacker = dmg:GetAttacker()
 	if IsValid(attacker) and (attacker:IsPlayer() or EvilCrawler.Creature(attacker)) then
-		Victim.Hurt(ent, dmg:GetDamage(), attacker)
+		local amount = dmg:GetDamage()
+		timer.Simple(0, function()
+			if IsValid(ent) and IsValid(attacker) then Victim.Hurt(ent, amount, attacker) end
+		end)
 	end
 end)
 

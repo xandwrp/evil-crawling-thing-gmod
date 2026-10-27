@@ -1118,7 +1118,10 @@ end)
 
 function ENT:OnTakeDamage(dmg)
 	if dmg:GetDamage() <= 0 then return end
-	self:Hurt(dmg:GetAttacker(), dmg:GetDamagePosition())
+	local attacker, from = dmg:GetAttacker(), dmg:GetDamagePosition()
+	timer.Simple(0, function()
+		if IsValid(self) then self:Hurt(attacker, from) end
+	end)
 end
 
 function ENT:Hurt(attacker, from)
