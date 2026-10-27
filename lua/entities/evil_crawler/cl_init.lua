@@ -122,7 +122,8 @@ function ENT:Think()
 	local st = self.LimbState[morph.legs[math.random(#morph.legs)]]
 	local p = st and st.points[math.random(#st.points)]
 	if not p then return end
-	self.Emitter = self.Emitter or ParticleEmitter(self:GetPos())
+	if not IsValid(self.Emitter) then self.Emitter = ParticleEmitter(self:GetPos()) end
+	if not IsValid(self.Emitter) then return end
 	local ember = self.Emitter:Add("effects/fire_embers" .. math.random(3), p)
 	if not ember then return end
 	ember:SetVelocity(VectorRand() * 30 + Vector(0, 0, 50))
@@ -136,7 +137,7 @@ function ENT:Think()
 end
 
 function ENT:OnRemove()
-	if self.Emitter then self.Emitter:Finish() end
+	if IsValid(self.Emitter) then self.Emitter:Finish() end
 end
 
 function ENT:Creature()
