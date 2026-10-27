@@ -93,6 +93,7 @@ local BASH_GAP = 2
 local LISTEN_TIME = 12
 local MUFFLE = 0.5
 local PILOT_PACE = { 0.35, 1 }
+local PILOT_LEAP = 300
 local VISIT_CELL = 512
 local VISIT_FORGET = 120
 local HEADINGS = 6
@@ -788,10 +789,10 @@ function ENT:Unstick(to, now, time, from)
 	end
 end
 
-function ENT:Leap(to, now)
+function ENT:Leap(to, now, meant)
 	if now < (self.NextLeap or 0) or self:GetAct() ~= EvilCrawler.ACT_NONE then return false end
 	local from = self:GetPos()
-	if self.LeapFrom and from:Distance(self.LeapFrom) < LEAP_MISS and to:Distance(self.LeapTo) < LEAP_MISS then return false end
+	if not meant and self.LeapFrom and from:Distance(self.LeapFrom) < LEAP_MISS and to:Distance(self.LeapTo) < LEAP_MISS then return false end
 	local d = to + LIFT - from
 	local dist = d:Length()
 	if dist > LEAP_RANGE or dist < REACHED then return false end
@@ -1523,7 +1524,14 @@ function ENT:Drive(pilot, now)
 	if bit.band(input.buttons, IN_ATTACK) ~= 0 then self:PilotStrike(pilot, aim) end
 	if bit.band(input.buttons, IN_JUMP) ~= 0 then
 		local tr = self:Trace(pos, pos + aim * LEAP_RANGE)
-		if self:Leap(tr.HitPos - aim * 16, now) then return nil, 0, SNAP end
+		local to = tr.HitPos - aim * 16
+		if tr.Hit and (to - pos):Dot(up) < 0 and to:Distance(pos) < PILOT_LEAP then
+			local dir = Flat(aim, up)
+			if dir:LengthSqr() < 0.01 then dir = self.Facing end
+			dir = dir:GetNormalized()
+			to = self:Trace(pos, pos + dir * PILOT_LEAP).HitPos - dir * 16
+		end
+		if self:Leap(to, now, true) then return nil, 0, SNAP end
 	end
 
 	local ahead = Flat(aim, up) + Flat(ang:Up(), up) * math.max(0, -aim:Dot(up))
