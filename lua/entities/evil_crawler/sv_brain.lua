@@ -1357,7 +1357,7 @@ function ENT:Rampage(now)
 		if not self.Goal or self:Reached(self.Goal) then self.Goal = self:Around(pos, 600) end
 		return true
 	end
-	if Proxy(target):NearestPoint(pos):Distance(pos) < RAGE_REACH * self.Scale and self:Clear(pos, target, nil, MASK_OPAQUE) then
+	if Proxy(target):NearestPoint(pos):Distance(pos) < RAGE_REACH * self.Scale and self:Reachable(target) then
 		self:Sear(target)
 		return true
 	end
