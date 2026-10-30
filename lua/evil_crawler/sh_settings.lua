@@ -69,7 +69,7 @@ EvilCrawler.SETTINGS = {
 	{ name = "integrate", default = 0, min = 0, max = 1, label = "Integration mode",
 		help = "Crawlers take bodies in whole instead of tearing them apart, and keep them. "
 			.. "Everyone it's eaten makes it a bit bigger, sharper and quicker to take the next one" },
-	{ name = "pilot", default = 0, min = 0, max = 1, label = "Eaten players take over",
+	{ name = "pilot", default = 0, min = 0, max = 1, label = "Eaten players take over (integration)",
 		help = "In integration mode, the first player a crawler finishes eating ends up driving it. "
 			.. "Move, sprint, jump to leap, attack to strike, hold use to let go and respawn" },
 	{ name = "flesh_color", default = 5908524, min = 0, max = 16777215, color = true, label = "Flesh colour",
