@@ -720,6 +720,13 @@ function ENT:Overpower(ply, now)
 	local rag = Victim.Take(ply, self)
 	if not IsValid(rag) then
 		self:Release()
+		local dmg = DamageInfo()
+		dmg:SetDamage(math.max(ply:Health(), 1) * 10 + 1000)
+		dmg:SetDamageType(DMG_GENERIC)
+		dmg:SetAttacker(self)
+		dmg:SetInflictor(self)
+		dmg:SetDamagePosition(ply:WorldSpaceCenter())
+		ply:TakeDamageInfo(dmg)
 		return
 	end
 	sound.Play(GRAB_SOUNDS[math.random(#GRAB_SOUNDS)], rag:GetPos(), 75, math.random(70, 85))
