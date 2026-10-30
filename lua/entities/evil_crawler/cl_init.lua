@@ -233,6 +233,11 @@ local function Chest(ent)
 	return Bone(ent, "ValveBiped.Bip01_Spine2") or ent:WorldSpaceCenter()
 end
 
+local function Grip(ent)
+	local part = not ent:IsPlayer() and CurrentPart(ent)
+	return part and part > 1 and Bone(ent, EvilCrawler.PARTS[part].grip[1]) or Chest(ent)
+end
+
 function ENT:AssignRoles(morph, act, victim, pos, fwd, left, jab)
 	local roles = {}
 	if act == ACT_NONE or not (IsValid(victim) or jab) then return roles end
@@ -640,7 +645,7 @@ function ENT:UpdateLimbs()
 					foot = LerpVector(f * f, cocked, chest + (chest - root):GetNormalized() * 8)
 				end
 			elseif holding then
-				foot = Chest(victim)
+				foot = Grip(victim)
 			elseif act == ACT_FEED then
 				st.bites = st.bites or {}
 				local bite, n, u = BitePose(victim, self:GetSeed(), role.index - 1, now - actStart - PULL_TIME, up, now, limb, st.bites)
