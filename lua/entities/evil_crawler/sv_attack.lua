@@ -460,7 +460,7 @@ for _, ent in ipairs(ents.FindByClass("prop_ragdoll")) do
 end
 
 timer.Create("EvilCrawlerReek", 1, 0, function()
-	if EvilCrawler.Setting("eat_corpses") == 0 then return end
+	if EvilCrawler.Setting("eat_corpses") == 0 or #ents.FindByClass("evil_crawler") == 0 then return end
 	local now = CurTime()
 	for rag in pairs(carrion) do
 		if Rotting(rag) then
