@@ -6,7 +6,7 @@ local Proxy = EvilCrawler.Proxy
 local Souls = Evil.SoulDigestion({ id = "evil_crawler", tricks = { slip = 3, dodge = 5, outrun = 2 } })
 EvilCrawler.Souls = Souls
 
-local cv_puppet = CreateConVar("evil_crawler_puppet", "0", 0, "Crawlers follow their spawner's crosshair instead of thinking")
+local cv_puppet = CreateConVar("evil_crawler_puppet", "0", 0, "Debug: 1 makes every crawler walk to wherever the player who spawned it is aiming and attack npcs near there, instead of hunting on its own. Set it in the server console")
 local cv_debug = GetConVar("evil_crawler_debug_scent")
 local ai_ignoreplayers = GetConVar("ai_ignoreplayers")
 local ai_disabled = GetConVar("ai_disabled")
