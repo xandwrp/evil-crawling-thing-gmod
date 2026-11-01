@@ -319,8 +319,20 @@ local function Partless(corpse)
 	return not CurrentPart(corpse) and corpse:GetNW2Int(EvilCrawler.EATEN_VAR, 0) == 0 and not EvilCrawler.Shared(corpse)
 end
 
+local MEAT = { [MAT_FLESH] = true, [MAT_BLOODYFLESH] = true, [MAT_ALIENFLESH] = true, [MAT_ANTLION] = true }
+
+local function Meaty(rag)
+	local phys = rag:GetPhysicsObjectNum(0)
+	if not IsValid(phys) then return false end
+	local name = phys:GetMaterial()
+	if name == "default" or string.find(string.lower(name), "flesh", 1, true) then return true end
+	local data = util.GetSurfaceData(util.GetSurfaceIndex(name))
+	return data ~= nil and MEAT[data.material] == true
+end
+
 local function Fleshy(rag)
-	return rag:LookupBone("ValveBiped.Bip01_Spine2") ~= nil or rag:GetPhysicsObjectCount() > 1
+	if rag:LookupBone("ValveBiped.Bip01_Spine2") ~= nil then return true end
+	return rag:GetPhysicsObjectCount() > 1 and Meaty(rag)
 end
 
 local function Rotting(rag)
