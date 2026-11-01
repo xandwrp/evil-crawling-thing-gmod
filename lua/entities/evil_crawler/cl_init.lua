@@ -20,6 +20,7 @@ local MOOD_AGITATION = { [0] = 0, [1] = 0.45, [2] = 1 }
 local THREAT_ARC = 35
 local IK_ITERATIONS = 3
 local LOD_DISTANCE = 1500
+local LOD_FPS = 25
 local MIN_SHRINK = 0.3
 local SWIM_STILL = 60
 local SWIM_FAST = 250
@@ -490,7 +491,9 @@ function ENT:UpdateLimbs()
 	local loud = math.Clamp(speed / SKITTER[2], 0, 1)
 	local shake = 0.04 + 0.04 * agit
 	local squeezed = math.max(MIN_SHRINK / morph.size, 1 - self:GetSqueeze())
-	local near = EyePos():DistToSqr(pos) < (LOD_DISTANCE * morph.size) ^ 2
+
+	local fps = 1 / FrameTime()
+	local cheap = fps < LOD_FPS or EyePos():DistToSqr(pos) < (LOD_DISTANCE * morph.size) ^ 2
 
 	local swimming = self:GetSwimming() and not limp
 	local axis, lift, side, stroke
@@ -677,7 +680,7 @@ function ENT:UpdateLimbs()
 
 		local bow = swimming and st.ring * (limb.length * 0.1) or up * (limb.length * shrink * (act == ACT_OUT and 0.08 or 0.35))
 		Pose(st, limb, root, foot, bow, now, shake, shrink)
-		if near then self:Unclip(st.points, limb.width) end
+		if cheap then self:Unclip(st.points, limb.width) end
 
 		if holding and not st.holdSince then st.holdSince = now end
 		if not holding then st.holdSince = nil end
@@ -801,7 +804,7 @@ function ENT:Bundle(morph)
 	return morph.bundle
 end
 
-function ENT:DrawBelly(morph, near)
+function ENT:DrawBelly(morph, cheap)
 	local bundle = self:Bundle(morph)
 	local h = self.BodyHeight * drawRot
 	local squeezed = math.max(MIN_SHRINK / morph.size, 1 - self:GetSqueeze())
@@ -811,7 +814,7 @@ function ENT:DrawBelly(morph, near)
 	local ang = self:GetAngles()
 	ang:RotateAroundAxis(ang:Up(), self.Churn or 0)
 	bFwd, bLeft, bUp, bCenter = ang:Forward(), -ang:Right(), ang:Up(), self:GetPos()
-	local sides, sub = near and 6 or 4, near and 2 or 1
+	local sides, sub = cheap and 6 or 4, cheap and 2 or 1
 
 	local gape = (self.Agitation or 0) * 0.15
 	local since = drawNow - self:GetActStart() - PULL_TIME
@@ -866,8 +869,9 @@ function ENT:Draw()
 	if not morph or not self.LimbState then return end
 
 	local pos = self:GetPos()
-	local near = EyePos():DistToSqr(pos) < (LOD_DISTANCE * morph.size) ^ 2
-	local sides, sub = near and 6 or 4, near and 3 or 1
+	local fps = 1 / FrameTime()
+	local cheap = fps < LOD_FPS or EyePos():DistToSqr(pos) < (LOD_DISTANCE * morph.size) ^ 2
+	local sides, sub = cheap and 6 or 4, cheap and 3 or 1
 
 	drawNow = UnPredictedCurTime()
 	drawHeat = (self.Heat or 0) * (0.85 + 0.15 * math.sin(drawNow * 23 + math.sin(drawNow * 7) * 2))
@@ -902,7 +906,7 @@ function ENT:Draw()
 			Flesh.Tube(st.points, sides, st.lumps[1] and sub * 2 or sub, LimbRadius, LimbColor, limb)
 		end
 	end
-	if EvilCrawler.Setting("abdomen") > 0 then self:DrawBelly(morph, near) end
+	if EvilCrawler.Setting("abdomen") > 0 then self:DrawBelly(morph, cheap) end
 
 	if cv_debug:GetBool() then
 		for _, leg in ipairs(morph.legs) do
