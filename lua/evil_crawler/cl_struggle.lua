@@ -1,6 +1,7 @@
 EvilCrawler = EvilCrawler or {}
 
 local ACT_GRAPPLE = EvilCrawler.ACT_GRAPPLE
+local View = Evil and Evil.View or function(name, _, calc) hook.Add("CalcView", name, calc) end
 
 local KEY_SIZE = { 150, 44 }
 local KEY_Y = 0.7
@@ -227,7 +228,15 @@ end)
 
 local focus, orbitUp
 
-hook.Add("CalcView", "EvilCrawlerDevoured", function(ply, _, angles, fov)
+local function Watching(ply)
+	return EvilCrawler.Devoured(ply) ~= nil
+end
+
+local function Unwatch()
+	focus, orbitUp = nil, nil
+end
+
+View("EvilCrawlerDevoured", Watching, function(ply, _, angles, fov)
 	local target = EvilCrawler.Devoured(ply)
 	if not target then
 		focus, orbitUp = nil, nil
@@ -256,4 +265,4 @@ hook.Add("CalcView", "EvilCrawlerDevoured", function(ply, _, angles, fov)
 	local eye = tr.HitPos + tr.HitNormal * 6
 
 	return { origin = eye, angles = (focus - eye):Angle(), fov = fov, drawviewer = false }
-end)
+end, Unwatch)
