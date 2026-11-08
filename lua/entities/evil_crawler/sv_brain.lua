@@ -1552,3 +1552,32 @@ function ENT:PuppetGoal()
 	local tr = util.TraceLine({ start = eye, endpos = eye + ply:GetAimVector() * 4096, filter = { ply, self } })
 	if tr.Hit then return tr.HitPos end
 end
+
+hook.Add("VChat_OnNPCReact", "EvilCrawler_VChat", function(pos, range, source, soundType)
+	if soundType ~= "voice chat" or not IsValid(source) or not source:IsPlayer() then return end
+	if not EvilCrawler or not EvilCrawler.Setting or not EvilCrawler.IgnoresPlayers then return end
+	local now = CurTime()
+	for _, crawler in ipairs(ents.FindByClass("evil_crawler")) do
+		if not IsValid(crawler) or crawler:GetAct() ~= EvilCrawler.ACT_NONE or crawler:Piloted()
+			or EvilCrawler.IgnoresPlayers() or not crawler:Wants(source) then continue end
+		local hearing = EvilCrawler.Setting("hearing") * crawler:Wits()
+		if hearing <= 0 then continue end
+		local distance = crawler:GetPos():Distance(pos)
+		local effectiveRange = range * hearing
+		if distance >= effectiveRange then continue end
+		if crawler:Trace(crawler:GetPos(), pos + Vector(0, 0, 16)).Hit then
+			distance = distance / 0.5
+		end
+		local loud = 1 - distance / effectiveRange
+		if loud <= 0 then continue end
+		crawler.HeardAt = now
+		crawler.Noise = { pos = pos, time = now, source = source, range = range }
+		crawler.Loud = loud
+		crawler.LastKnown = pos
+		crawler.Trail = nil
+		crawler.Taunt = { source = source, pos = pos }
+		crawler:SetPrey(NULL)
+		crawler:SetState("listen")
+		crawler.Goal = pos
+	end
+end)
