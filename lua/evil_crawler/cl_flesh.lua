@@ -14,10 +14,65 @@ if not skin:IsError() then Flesh.Material:SetTexture("$basetexture", skin:GetTex
 local AXES = { Vector(1, 0, 0), Vector(-1, 0, 0), Vector(0, 1, 0), Vector(0, -1, 0), Vector(0, 0, 1), Vector(0, 0, -1) }
 local cube = { 0, 0, 0, 0, 0, 0 }
 
+-- Player flashlights. The flesh is unlit geometry coloured from the engine's light samples, and a
+-- flashlight is a projected texture, which neither ComputeLighting nor ComputeDynamicLighting sees,
+-- so without this the beam passes over the flesh as if it were not there. Each lit flashlight is
+-- treated as a soft cone from the player's eyes along their aim, shadowed by the world brushes.
+local FLASH_POWER = 1.1     -- brightness at the heart of the beam, close up
+local FLASH_CORE = 0.45     -- share of the beam's half-angle that is full strength
+local cvFar = GetConVar("r_flashlightfar")
+local cvFov = GetConVar("r_flashlightfov")
+
+local beams, beamsFrame = {}, -1
+local function Beams()
+	local frame = FrameNumber()
+	if frame == beamsFrame then return beams end
+	beamsFrame = frame
+	for i = #beams, 1, -1 do beams[i] = nil end
+	local far = cvFar and cvFar:GetFloat() or 750
+	local half = math.rad((cvFov and cvFov:GetFloat() or 45) * 0.5)
+	for _, ply in ipairs(player.GetAll()) do
+		if ply:Alive() and ply:FlashlightIsOn() then
+			beams[#beams + 1] = {
+				ply = ply, from = ply:EyePos(), dir = ply:GetAimVector(), far = far,
+				edge = math.cos(half * 1.15), core = math.cos(half * FLASH_CORE),
+			}
+		end
+	end
+	return beams
+end
+
+local flash = { 0, 0, 0, 0, 0, 0 }
+local function Flash(pos)
+	for i = 1, 6 do flash[i] = 0 end
+	for _, b in ipairs(Beams()) do
+		local to = pos - b.from
+		local dist = to:Length()
+		if dist > 1 and dist < b.far then
+			to:Div(dist)
+			local c = to:Dot(b.dir)
+			if c > b.edge then
+				local tr = util.TraceLine({ start = b.from, endpos = pos, mask = MASK_SOLID_BRUSHONLY })
+				if not tr.Hit then
+					local cone = math.Clamp((c - b.edge) / (b.core - b.edge), 0, 1)
+					local fall = 1 - dist / b.far
+					local s = FLASH_POWER * cone * cone * fall * fall
+					for i, axis in ipairs(AXES) do
+						local facing = -to:Dot(axis)
+						if facing > 0 then flash[i] = flash[i] + s * facing end
+					end
+				end
+			end
+		end
+	end
+	return flash
+end
+
 function Flesh.SampleLight(pos, glow)
+	local f = Flash(pos)
 	for i, axis in ipairs(AXES) do
 		local c = render.ComputeLighting(pos, axis) + render.ComputeDynamicLighting(pos, axis)
-		cube[i] = Lerp(glow or 0, (c.x + c.y + c.z) / 3, 1)
+		cube[i] = Lerp(glow or 0, (c.x + c.y + c.z) / 3 + f[i], 1)
 	end
 end
 

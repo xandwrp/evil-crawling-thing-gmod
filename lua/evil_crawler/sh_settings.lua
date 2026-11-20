@@ -64,6 +64,19 @@ EvilCrawler.SETTINGS = {
 			.. "It keeps it until it dies. At 0 it never grows" },
 	{ name = "grow_max", default = 5, min = 1, max = 10, decimals = 1, label = "Biggest size",
 		help = "Most a crawler can grow, times its starting size" },
+	{ name = "eggs", default = 1, min = 0, max = 1, label = "Lays eggs",
+		help = "A crawler that has finished eating a body plants one egg somewhere secluded: closed in, "
+			.. "out of sight of the open map and of anyone nearby. It then has to eat another body before it "
+			.. "can lay again. At 0 they never lay" },
+	{ name = "egg_chance", default = 100, min = 0, max = 100, decimals = 0, label = "Egg chance (%)",
+		help = "Chance a crawler gets the urge to lay an egg when it finishes eating a body" },
+	{ name = "crawler_cap", default = 10, min = 0, max = 100, decimals = 0, label = "Population cap",
+		help = "Most living crawlers there can be before eggs stop hatching. Eggs that are due wait, "
+			.. "unhatched, until the count drops below this. At 0 there is no cap" },
+	{ name = "egg_time", default = 60, min = 1, max = 600, decimals = 0, label = "Egg gestation",
+		help = "Seconds an egg takes to hatch into a crawler. Eggs are physics props with 10 health: "
+			.. "they can be knocked loose, picked up, thrown, and break when shot or slammed. A broken "
+			.. "egg spills bones and a dead hatchling" },
 	{ name = "abdomen", default = 0, min = 0, max = 1, label = "Stomach",
 		help = "Gives crawlers a stomach where the legs meet, with a mouth underneath that it feeds through" },
 	{ name = "integrate", default = 0, min = 0, max = 1, label = "Integration mode",
@@ -100,4 +113,26 @@ end
 
 function EvilCrawler.FleshColor()
 	return Color(EvilCrawler.Settings:Color("flesh_color"))
+end
+
+-- Living crawlers, not counting corpses (killed ones and stillborn ones from broken eggs).
+function EvilCrawler.Population()
+	local n = 0
+	for _, c in ipairs(ents.FindByClass("evil_crawler")) do
+		if c.State ~= "dead" and not c.Stillborn then n = n + 1 end
+	end
+	return n
+end
+
+-- Whether the population cap is reached or over. Always false at cap 0.
+function EvilCrawler.AtCap()
+	local cap = EvilCrawler.Setting("crawler_cap")
+	return cap > 0 and EvilCrawler.Population() >= cap
+end
+
+-- The egg shell's tint. Fixed, not a setting.
+local EGG_COLOR = Color(180, 35, 30)
+
+function EvilCrawler.EggColor()
+	return EGG_COLOR
 end

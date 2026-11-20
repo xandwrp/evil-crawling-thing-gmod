@@ -9,8 +9,12 @@ AddCSLuaFile("evil_crawler/cl_remains.lua")
 AddCSLuaFile("evil_crawler/cl_stomach.lua")
 include("shared.lua")
 if not Evil then return end
+
+local cv_debug = CreateConVar("evil_crawler_debug", "0", 0, "Master debug: 1 draws the crawler's overlays and reports every egg-laying check with its numbers and thresholds. Set it in the server console; the world drawings need developer 1 on the client")
+
 include("sv_brain.lua")
 include("sv_attack.lua")
+include("sv_eggs.lua")
 
 local cv_probes = CreateConVar("evil_crawler_debug_probes", "0", 0, "Draw surface probes (needs developer 1)")
 
@@ -91,7 +95,7 @@ function ENT:Initialize()
 
 	if self:GetSeed() == 0 then self:SetSeed(math.random(1, 2 ^ 30)) end
 	if self:GetBorn() <= 0 then self:SetBorn(EvilCrawler.Setting("size")) end
-	local morph = EvilCrawler.Grow(self:GetSeed())
+	local morph = EvilCrawler.Grow(self:GetSeed(), self:LegShare())
 	self.BaseHeight = morph.height
 	self:Resize()
 	self:SetSaveValue("m_takedamage", 2)
@@ -123,6 +127,7 @@ function ENT:Think()
 	self:Resize()
 	self:Crawl(FrameTime())
 	self:UpdateAct(CurTime())
+	self:EggCheck(CurTime())
 	self:NextThink(CurTime())
 	return true
 end
@@ -136,7 +141,7 @@ function ENT:SenseSurface(pos, fwd, left, up, move)
 		local tr = self:Trace(from, from + dir * len)
 		if not tr.Hit or tr.StartSolid or tr.HitSky or tr.HitNoDraw then return false end
 		if IsValid(tr.Entity) and SWINGS[tr.Entity:GetClass()] then return false end
-		if cv_probes:GetBool() then debugoverlay.Line(from, tr.HitPos, 0.05, PROBE_COLOR, true) end
+		if cv_probes:GetBool() or cv_debug:GetBool() then debugoverlay.Line(from, tr.HitPos, 0.05, PROBE_COLOR, true) end
 		local near = 1 - math.min(1, tr.HitPos:Distance(pos) / reach)
 		local w = weight * near * near
 		if self.Gap and tr.HitNormal:Dot(self.Gap) < FACING then w = w * GAP_GRIP end

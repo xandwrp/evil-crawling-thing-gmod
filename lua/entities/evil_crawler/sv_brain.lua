@@ -423,6 +423,7 @@ function ENT:Ponder()
 	if self.State == "rage" and self:Rampage(now) then return end
 	self:Cool(now)
 	if self.State == "flee" and self:LyingLow(now) then return end
+	if self:EggSeek(now) then return end
 
 	local puppet = cv_puppet:GetBool()
 	local meal = not puppet and self:Carrion()
