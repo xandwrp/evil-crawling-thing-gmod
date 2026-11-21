@@ -212,9 +212,7 @@ function ENT:GravGunPickupAllowed() self:Unglue() return true end
 function ENT:GravGunPunt() self:Unglue() return true end
 
 -- One bone flung out of the shell. Plain props with no timer on them: they stay until cleaned up.
--- source is the egg that spilled it. EvilBoneSpilled lets other addons and gamemodes know the
--- bone came from an egg, eg so Hunter's Glee can swap the skull for one of its own.
-local function Bone(model, pos, vel, source)
+local function Bone(model, pos, vel)
 	local bone = ents.Create("prop_physics")
 	if not IsValid(bone) then return end
 	bone:SetModel(model)
@@ -228,7 +226,6 @@ local function Bone(model, pos, vel, source)
 		phys:SetVelocity(vel)
 		phys:AddAngleVelocity(VectorRand() * 300)
 	end
-	hook.Run("EvilBoneSpilled", bone, source)
 end
 
 -- What was growing inside: a small crawler, already dead. Die() puts it in the corpse pose and
@@ -270,7 +267,7 @@ function ENT:Break()
 	for _ = 1, math.random(BONE_MIN, BONE_MAX) do models[#models + 1] = BONES[math.random(#BONES)] end
 	for _, model in ipairs(models) do
 		local out = (VectorRand() + up):GetNormalized()
-		Bone(model, pos + out * EGG_THICK * 0.3, out * math.Rand(80, 180), self)
+		Bone(model, pos + out * EGG_THICK * 0.3, out * math.Rand(80, 180))
 	end
 	self:Stillborn(pos, up)
 	SafeRemoveEntity(self)
