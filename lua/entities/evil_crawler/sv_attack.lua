@@ -1234,6 +1234,8 @@ function ENT:Spit(models)
 			end
 			spat[#spat + 1] = bone
 			if #spat > MAX_BONES then SafeRemoveEntity(table.remove(spat, 1)) end
+			-- see the eggs' Bone, so others know this bone was spat up by a crawler
+			hook.Run("EvilBoneSpilled", bone, self)
 		end
 	end)
 end
