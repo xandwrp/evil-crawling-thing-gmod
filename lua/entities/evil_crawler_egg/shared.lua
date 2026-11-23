@@ -1,9 +1,10 @@
 EvilCrawler = EvilCrawler or {}
--- The HL2 watermelon at twice its size: about 31 x 36 x 31. sv_eggs.lua keeps its own copy of these
--- for the nest checks.
-EvilCrawler.EGG_MODEL = "models/props_junk/watermelon01.mdl"
-EvilCrawler.EGG_SCALE = 2
-EvilCrawler.EGG_HALF = Vector(7.70, 8.96, 7.83) * EvilCrawler.EGG_SCALE -- the model's hull, scaled
+-- The Garry's Mod PHX cannonball from spawnlist Builder > Misc, scaled down to about 32 across. Its
+-- origin sits at the base, so cl_init.lua draws the shell centred on the physics hull. sv_eggs.lua
+-- keeps its own copy of these for the nest checks.
+EvilCrawler.EGG_MODEL = "models/props_phx/cannonball.mdl"
+EvilCrawler.EGG_SCALE = 0.714
+EvilCrawler.EGG_HALF = Vector(22.4, 22.4, 22.4) * EvilCrawler.EGG_SCALE -- the model's visual half-size, scaled
 EvilCrawler.EGG_THICK = 32
 
 ENT.Type = "anim"
