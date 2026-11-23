@@ -611,6 +611,8 @@ end
 
 function ENT:Finish(corpse, v)
 	if v.digested then return end
+	-- Rolled once per body. A miss leaves any urge it already had alone.
+	if math.random() * 100 < EvilCrawler.Setting("egg_chance") then self.EggReady = true end
 	v.tricks = self:Learn(corpse.EvilCrawlerPlayer)
 	self.EvilStomach:Settle(v)
 end

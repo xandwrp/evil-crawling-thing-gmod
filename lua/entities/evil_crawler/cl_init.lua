@@ -144,9 +144,10 @@ function ENT:Creature()
 	local seed = self:GetSeed()
 	if seed == 0 then return end
 
-	if self.GrownFrom ~= seed then
-		self.GrownFrom = seed
-		self.Morph = EvilCrawler.Grow(seed)
+	local grown = seed .. (self:GetRunt() and "r" or "")
+	if self.GrownFrom ~= grown then
+		self.GrownFrom = grown
+		self.Morph = EvilCrawler.Grow(seed, self:LegShare())
 		self.LimbState = nil
 		self.Meals = nil
 	end

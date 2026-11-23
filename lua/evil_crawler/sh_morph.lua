@@ -34,7 +34,11 @@ local function Segments(rand, count, total)
 	return lengths
 end
 
-function EvilCrawler.Grow(seed)
+-- Share of the usual legs a runt (the stillborn crawler from a broken egg) grows.
+EvilCrawler.RUNT_LEGS = 0.25
+
+-- legShare scales how many legs it grows (1 or nil for a normal crawler), never below two.
+function EvilCrawler.Grow(seed, legShare)
 	local rand = Rng(seed)
 	local creature = {
 		legs = {},
@@ -43,6 +47,7 @@ function EvilCrawler.Grow(seed)
 	}
 
 	local count = Int(rand, 8, 12)
+	if legShare and legShare < 1 then count = math.max(2, math.Round(count * legShare)) end
 	local reach = 0
 	for i = 1, count do
 		local segments = Int(rand, 3, 5)

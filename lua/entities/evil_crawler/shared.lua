@@ -169,6 +169,11 @@ function ENT:SetupDataTables()
 	self:NetworkVar("Entity", 2, "Pilot")
 	self:NetworkVar("Vector", 0, "StabAt")
 	self:NetworkVar("Float", 3, "Born")
+	self:NetworkVar("Bool", 1, "Runt") -- stillborn from a broken egg: grows only EvilCrawler.RUNT_LEGS of its legs
+end
+
+function ENT:LegShare()
+	return self:GetRunt() and EvilCrawler.RUNT_LEGS or 1
 end
 
 function ENT:Inside()
