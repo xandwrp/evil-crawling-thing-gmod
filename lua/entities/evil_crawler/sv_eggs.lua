@@ -4,14 +4,15 @@
 -- can lay again. While the urge is on it, it goes looking for such a place instead of wandering.
 
 local EGG_THICK = 32     -- how thick the egg is; keep in step with EvilCrawler.EGG_THICK in the egg's shared.lua
--- Half its reach across the surface. The scaled melon is nearly round (about 31 by 36), so both
--- axes are checked at the longer one rather than trusting which way the model's long side points.
-local EGG_LONG = 18
-local EGG_WIDE = 18
--- How far the egg's centre sits off the face it rests on: the scaled melon's half-height (15.66),
--- plus a hair so it does not start inside the brush. Walls and ceilings sink it in a little instead,
--- so a glued egg looks stuck on rather than hovering next to the surface.
-local EGG_REST = 15.9
+-- Half its reach across the surface. The scaled ball is about 32 across, so both axes are checked at
+-- the radius rather than trusting which way the model's long side points.
+local EGG_LONG = 17
+local EGG_WIDE = 17
+-- How far the egg's origin sits off the face it rests on. The model's origin is at the bottom of the
+-- ball, so a hair is all it takes: the ball then stands on the surface instead of sinking into it.
+-- Walls and ceilings sink it in a little instead, so a glued egg looks stuck on rather than hovering
+-- next to the surface.
+local EGG_REST = 0.6
 local EGG_SINK = 1.5
 local WALL_GAP = 0.5     -- how close it snugs up to a neighbouring wall
 local SUPPORT_REACH = 10 -- how far under its rim the surface may drop away before it counts as overhanging
@@ -484,7 +485,8 @@ function ENT:LayAt(at, normal)
 	egg.Layer = self
 	egg.Master = self.Master
 	egg:Spawn()
-	egg:Activate()
+	-- No Activate: on a scripted entity with a SetModelScale on it, Activate rebuilds the physics object
+	-- from the model, and the cannonball has no .phy to rebuild it from (see the egg's SpawnFunction).
 	-- A laid egg belongs to whoever owns the crawler that laid it, if anyone does, so it gets cleaned
 	-- up with their props too. Laid by a map crawler there is no creator and nothing to record.
 	local maker = self:GetCreator()

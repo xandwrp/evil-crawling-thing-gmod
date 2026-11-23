@@ -149,7 +149,7 @@ function EvilCrawler.EggsFull()
 end
 
 -- The egg shell's tint. Fixed, not a setting.
-local EGG_COLOR = Color(180, 35, 30)
+local EGG_COLOR = Color(100, 26, 34)
 
 function EvilCrawler.EggColor()
 	return EGG_COLOR
