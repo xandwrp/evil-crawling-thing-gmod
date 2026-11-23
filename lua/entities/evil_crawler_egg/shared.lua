@@ -12,3 +12,6 @@ ENT.PrintName = "Evil Crawler Egg"
 ENT.Category = "Syhgma's Evil Entities"
 ENT.Spawnable = Evil ~= nil
 ENT.RenderGroup = RENDERGROUP_OPAQUE
+-- Stops the spawn menu handing out a second one while the button is held. This is a table field the
+-- spawn menu reads; setting ent.NoDuplicate on the instance afterwards does nothing.
+ENT.DoNotDuplicate = true

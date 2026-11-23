@@ -121,7 +121,6 @@ function ENT:SpawnFunction(ply, tr, class)
 	-- field the physics side of the engine keeps for a physics entity, and that is what cost the snake
 	-- egg its collisions; SetCreator is GMod's who-made-this, which is all undo and cleanup need.
 	ent:SetCreator(ply)
-	ent.NoDuplicate = true
 	undo.Create("evil_crawler_egg")
 	undo.AddEntity(ent)
 	undo.SetPlayer(ply)

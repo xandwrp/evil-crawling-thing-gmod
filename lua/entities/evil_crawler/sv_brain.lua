@@ -423,8 +423,6 @@ function ENT:Ponder()
 	if self.State == "rage" and self:Rampage(now) then return end
 	self:Cool(now)
 	if self.State == "flee" and self:LyingLow(now) then return end
-	if self:EggSeek(now) then return end
-
 	local puppet = cv_puppet:GetBool()
 	local meal = not puppet and self:Carrion()
 	local reek = not meal and not puppet and self:Reeks(pos, now)
@@ -476,6 +474,10 @@ function ENT:Ponder()
 		self:Look(now)
 		prey = self:Sense()
 	end
+	-- Looked for prey first: on its way to a nest a crawler still turns on whoever is standing in front
+	-- of it, and only takes the nest over when there is nobody about to deal with. This used to run
+	-- before Look and Sense, so a ready crawler walked past everyone for as long as the nest held out.
+	if not prey and self:EggSeek(now) then return end
 	self:SetPrey(prey or NULL)
 	if prey then
 		self.Taunt = nil
