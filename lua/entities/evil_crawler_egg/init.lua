@@ -117,6 +117,15 @@ function ENT:SpawnFunction(ply, tr, class)
 	ent.Master = ply
 	ent:Spawn()
 	ent:Activate()
+	-- Tied to whoever placed it, by creator. SetOwner would write the engine's own m_hOwnerEntity, the
+	-- field the physics side of the engine keeps for a physics entity, and that is what cost the snake
+	-- egg its collisions; SetCreator is GMod's who-made-this, which is all undo and cleanup need.
+	ent:SetCreator(ply)
+	ent.NoDuplicate = true
+	undo.Create("evil_crawler_egg")
+	undo.AddEntity(ent)
+	undo.SetPlayer(ply)
+	ply:AddCleanup("props", ent)
 	return ent
 end
 
@@ -316,6 +325,12 @@ function ENT:Hatch()
 	crawler.SpawnUp = normal
 	crawler:Spawn()
 	crawler:Activate()
+	-- The hatched crawler belongs to the egg's creator, if it has one.
+	local maker = self:GetCreator()
+	if IsValid(maker) then
+		crawler:SetCreator(maker)
+		maker:AddCleanup("npcs", crawler)
+	end
 	self:EmitSound("npc/barnacle/barnacle_tongue_pull1.wav", 70, 85)
 	SafeRemoveEntity(self)
 end

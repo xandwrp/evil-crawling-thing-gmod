@@ -485,6 +485,10 @@ function ENT:LayAt(at, normal)
 	egg.Master = self.Master
 	egg:Spawn()
 	egg:Activate()
+	-- A laid egg belongs to whoever owns the crawler that laid it, if anyone does, so it gets cleaned
+	-- up with their props too. Laid by a map crawler there is no creator and nothing to record.
+	local maker = self:GetCreator()
+	if IsValid(maker) then egg:SetCreator(maker) end
 	self.EggReady = false
 	self:EmitSound("physics/flesh/flesh_squishy_impact_hard3.wav", 65, math.Rand(90, 105))
 	if Debug() then Say(self, "egg planted") end
