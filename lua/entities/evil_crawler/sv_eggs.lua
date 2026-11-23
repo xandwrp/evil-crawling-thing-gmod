@@ -75,12 +75,12 @@ local PASS_COLOR = Color(0, 255, 140)
 local FAIL_COLOR = Color(255, 90, 90)
 local NEST_COLOR = Color(0, 220, 255)
 
--- `developer 1` on its own is enough to see the checks; evil_crawler_debug forces them on top of it.
+-- Off unless the convar says otherwise. The world drawings still need developer 1 on the client,
+-- since debugoverlay only draws then, but a server running with developer 1 no longer fills its
+-- console with an egg check several times a second.
 local function Debug()
 	local cv = GetConVar("evil_crawler_debug")
-	if cv and cv:GetBool() then return true end
-	local dev = GetConVar("developer")
-	return dev and dev:GetInt() >= 1 or false
+	return cv ~= nil and cv:GetBool()
 end
 
 local function Say(ent, msg)
@@ -432,9 +432,22 @@ function ENT:EggSeek(now)
 
 	if not self.EggGoal then
 		if now < (self.NextNest or 0) then return false end
-		self.NextNest = now + NEST_GAP
 		local at, normal = self:EggNest()
-		if not at then return false end
+		if not at then
+			-- Nowhere to lay. A map with no suitable spot never gets one, so waiting the same 1.5
+			-- seconds and probing again would search for the rest of the round: back off further each
+			-- time, up to a minute or so between tries.
+			local misses = math.min((self.NestMisses or 0) + 1, 6)
+			self.NestMisses = misses
+			self.NextNest = now + NEST_GAP * 2 ^ misses
+			if Debug() then
+				Say(self, string.format("no nest anywhere, backing off %ds (%d misses)",
+					math.floor(NEST_GAP * 2 ^ misses), misses))
+			end
+			return false
+		end
+		self.NestMisses = 0
+		self.NextNest = now + NEST_GAP
 		self.EggGoal = { pos = at, normal = normal, expires = now + NEST_HOLD }
 		if Debug() then
 			local d = self:GetPos():Distance(at)
@@ -451,6 +464,12 @@ function ENT:EggSeek(now)
 end
 
 function ENT:LayAt(at, normal)
+	-- At the cap, eggs still waiting counted, another one would only sit unhatched. EggCheck makes
+	-- this test too, but EggSeek reaches LayAt by walking to a nest instead of going through it.
+	if EvilCrawler.EggsFull() then
+		if Debug() then Say(self, "at the cap, not laying") end
+		return false
+	end
 	local ok, r = self:EggPlantable(at, normal)
 	if not ok then
 		if Debug() then Say(self, "refused at the last check") end
