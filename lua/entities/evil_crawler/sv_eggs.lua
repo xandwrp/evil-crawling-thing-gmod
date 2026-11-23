@@ -394,11 +394,19 @@ function ENT:EggSeek(now)
 		self.EggGoal = nil
 		return false
 	end
-	local hold = self.Hunting and "hunting" or self.Carrion and "a corpse" or self.Tending and "tending"
-		or self.State == "hide" and "hiding" or self.State == "flee" and "fleeing"
-		or self.State == "rage" and "raging"
-		or self:GetAct() ~= EvilCrawler.ACT_NONE and "mid-action"
-		or self.Piloted and self:Piloted() and "piloted"
+	-- Only a crawler that is actually walking about goes looking, the same whitelist EggCheck uses.
+	-- This used to test self.Carrion, which is a method and so always true, so it held off on every
+	-- thought and never looked at all; the hunting and tending flags it also tested do not exist on
+	-- the crawler. States off the list (hunting, feeding, fleeing, raging) hold off here, and
+	-- EggCheck lays the egg where it stands once it is free again.
+	local hold
+	if self:GetAct() ~= EvilCrawler.ACT_NONE then
+		hold = "mid-action"
+	elseif self.Piloted and self:Piloted() then
+		hold = "piloted"
+	elseif not WALKING[self.State] then
+		hold = "in " .. tostring(self.State)
+	end
 	if hold then
 		if Debug() and self.EggNote ~= hold then
 			self.EggNote = hold
